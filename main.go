@@ -229,5 +229,34 @@ func main() {
 		c.JSON(http.StatusOK, Meta{Code: 200, Message: "DONE, BABE"})
 	})
 
+	authorized.POST("/token", func(c *gin.Context) {
+		log.Println("Hello, token")
+		var accessTokenRequest AccessTokenRequest
+		err := c.BindJSON(&accessTokenRequest)
+		if err != nil {
+			c.Abort()
+		}
+
+		accessToken, err := generateJWTToken(accessTokenRequest.Uid)
+
+		if err != nil {
+			c.Abort()
+		}
+
+		c.JSON(http.StatusOK, AccessTokenResponse{AccessToken: accessToken})
+	})
+
 	_ = router.Run(":" + port)
+}
+
+// temp info
+
+// Alex Walker 0179 999 999 => uid 177780178
+
+type AccessTokenResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
+type AccessTokenRequest struct {
+	Uid string `json:"uid"`
 }
