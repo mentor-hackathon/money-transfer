@@ -168,6 +168,22 @@ func transferFromUserToUser(transferRequest TransferRequest) (bool, error) {
 	return true, err
 }
 
+func TokenMiddleWare() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		givenToken := c.Request.Header.Get("Authorization")
+		log.Println(givenToken)
+		//_, err := base64.StdEncoding.DecodeString(givenToken)
+		//if err != nil {
+		//	_ = c.AbortWithError(http.StatusUnauthorized, err)
+		//}
+		//log.Println(string(authInfo))
+	}
+}
+
+var accounts = gin.Accounts{
+	"mentor": "123456",
+}
+
 func main() {
 	// LU HONG HAI 0111 222 333 => uid 3
 	// Alex Walker 0179 999 999 => uid 177780178
@@ -181,7 +197,11 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Logger())
 
-	router.POST("/transfer", func(c *gin.Context) {
+	authorized := router.Group("/", gin.BasicAuth(accounts))
+
+	authorized.Use(TokenMiddleWare())
+
+	authorized.POST("/transfer", func(c *gin.Context) {
 		var transferRequest TransferRequest
 
 		err := c.BindJSON(&transferRequest)
