@@ -236,8 +236,7 @@ func main() {
 	})
 
 	authorized.POST("/token", func(c *gin.Context) {
-		//log.Println("Hello, token")
-		var accessTokenRequest AccessTokenRequest
+		var accessTokenRequest UserInfoRequest
 		err := c.BindJSON(&accessTokenRequest)
 		if err != nil {
 			c.Abort()
@@ -252,17 +251,74 @@ func main() {
 		c.JSON(http.StatusOK, AccessTokenResponse{AccessToken: accessToken})
 	})
 
+	authorized.POST("/wallet/info", func(c *gin.Context) {
+		var userInfoRequest UserInfoRequest
+		err := c.BindJSON(&userInfoRequest)
+		if err != nil {
+			c.Abort()
+		}
+
+		accessToken, err := generateJWTToken(userInfoRequest.Uid, KeyPublic, KeyPrivate)
+
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Can not fetch wallet info"})
+		}
+
+		walletAccount, err := getWalletInfo(accessToken)
+
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Can not fetch wallet info"})
+		}
+
+		c.JSON(http.StatusOK, walletAccount)
+	})
+
 	_ = router.Run(":" + port)
 }
 
 // temp info
 
-// Alex Walker 0179 999 999 => uid 177780178
-
 type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-type AccessTokenRequest struct {
+type UserInfoRequest struct {
 	Uid string `json:"uid"`
+}
+
+type WalletAccount struct {
+	AccountId string `json:"account_id"`
+	Currency  string `json:"currency"`
+	Balance   int    `json:"balance"`
+	CreatedAt int64  `json:"created_at"`
+	Status    string `json:"status"`
+}
+
+type WalletData struct {
+	Accounts []WalletAccount `json:"accounts"`
+}
+
+type WalletInfoResponse struct {
+	Data WalletData `json:"data"`
+	Meta Meta `json:"meta"`
+}
+
+func getWalletInfo(accessToken string) (WalletAccount, error) {
+	response, err := resty.R().SetResult(WalletInfoResponse{}).
+		SetHeader("Authorization", accessToken).
+		SetHeader("X-Device-ID", "6CfTMX1FDBrpCdoeDXlDzs").
+		SetHeader("Content-Type", "application/json").
+		SetHeader("User-Agent", "vinid.uat/12.0-uat Dalvik/2.1.0 (Linux; U; Android 9; Android SDK built for x86 Build/PSR1.180720.093)").
+		Get(BaseUrl + "wallet/v1/wallets")
+
+	if err != nil {
+		return WalletAccount{}, err
+	}
+
+	//log.Println(string(response.Body()))
+
+	walletInfoResponse := response.Result().(*WalletInfoResponse)
+	walletAccount := walletInfoResponse.Data.Accounts[0]
+
+	return walletAccount, nil
 }
